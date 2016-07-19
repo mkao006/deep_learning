@@ -1,13 +1,26 @@
 ## Need to execute the mnist_data_converter.py
-mnist = read.csv(file = "mnist.csv")
+library(data.table)
+library(magrittr)
+library(dplyr)
 
-train_data = as.matrix(mnist[mnist$set == "train", 2:785])
-train_data_label = as.matrix(mnist[mnist$set == "train", 786])
+## Read the data
+mnist =
+    fread(input = "mnist.csv", stringsAsFactors = FALSE, header = TRUE)
 
-## Structure the following scripts
 
-## 1. Data loader
-##
-## 2. Network builder
-##
-## 3. Executor
+## Remove the first column which is the row names
+mnist =
+    mnist %>%
+    select(., -V1)
+
+train_data =
+    mnist %>%
+    subset(., set == "train") %>%
+    select(., matches("^[0-9]")) %>%
+    as.matrix
+
+train_data_label =
+    mnist %>%
+    subset(., set == "train") %>%
+    select(., label) %>%
+    as.matrix
