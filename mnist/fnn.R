@@ -36,9 +36,9 @@ translation_delta_x = function(w){
 
 initialise_weight = function(input_size, output_size){
     apply(X = matrix(rnorm(input_size * output_size),
-                      nr = input_size,
-                      nc = output_size),
-           MARGIN = 2,
+                     nr = input_size,
+                     nc = output_size),
+          MARGIN = 2,
           FUN = function(x) x/sum(x))
 }
 
@@ -53,36 +53,51 @@ train = function(data,
     i = 1
     c_old = -Inf
 
-    w0 = weights[[1]]
-    w1 = weights[[2]]
-    n = NROW(data)
 
-    n_sample = floor(n * sampling_pct)
+
+    n = NROW(data)
+    size = c(ncol(data), ncol(weights[[1]]), ncol(weights[[2]]))
 
     while(i <= maxIter){
         if(stochastic){
+            n_sample = floor(n * sampling_pct)
             index_sample = sample(n, n_sample)
             train_data = data[index_sample, ]
             train_data_label = label[index_sample, ]
+        } else {
+            n_sample = n
+            train_data = data
+            train_data_label = label
         }
+
+        ## Initialise t and a, a has same dimension as t
+        t = list(train_data,
+                 matrix(0, nc = size[2], nr = size[1]),
+                 matrix(0, nc = size[3], nr = size[2]))
+        a = t
+
+        dc_da = matrix(0, nr = size[1], nc = size[3])
+        da_dt = list(matrix(0, nr = size[1], nc = size[2]),
+                     matrix(0, nr = size[1], nc = size[3]))
+        dt_dw = list(matrix(0, nr = size[1], nc = size[2]),
+                     matrix(0, nr = size[1], nc = size[3]))
+        dt_da = list(matrix(0, nr = size[2], size[3]),
+                     1)
 
 
         ## Forward propagation
-        t1 = translation(train_data, w0)
-        a1 = activation(t1)
-        t2 = translation(a1, w1)
-        a2 = activation(t2)
+        for(layer in 1:length(weights)){
+            t[[layer + 1]] = translation(t[[layer]], weights[[layer]])
+            a[[layer + 1]] = activation(t[[layer + 1]])
+        }
 
-        ## print(head(a2))
-        ## print(head(train_data_label_bin))
-
-        c = cost(train_data_label, a2)
+        c = cost(train_data_label, a[[3]])
         message("Cost: ", c)
         if((c - c_old) < tol)
             break
 
         ## Calculate the number correctly classified
-        pred = apply(a2, 1, which.max) - 1
+        pred = apply(a[[3]], 1, which.max) - 1
         actual_label = apply(train_data_label, 1, which.max) - 1
         message("Percentage classified correctly: ",
                 round(sum(actual_label == pred)/n_sample * 100, 4), "%")
@@ -92,16 +107,28 @@ train = function(data,
 
         ## Back propagation
         ##
-        dc_da2 = cost_delta(train_data_label, a2)
-        da2_dt2 = activation_delta(t2)
-        dt2_dw = t(translation_delta_weight(a1))
-        dt2_da1 = translation_delta_x(w1)
-        da1_dt1 = activation_delta(t1)
-        dt1_dw = t(translation_delta_weight(train_data))
 
-        w0 = w0 -
-            gamma * t(t(((dc_da2 * da2_dt2) %*% dt2_da1) * da1_dt1) %*% dt1_dw)
-        w1 = w1 - gamma * t(t(dc_da2 * da2_dt2) %*% dt2_dw)
+        dc_da = cost_delta(train_data_label, a[[length(a)]])
+        for(layer in 1:length(weights)){
+            da_dt[[layer]] = activation_delta(t[[layer + 1]])
+            dt_dw[[layer]] = t(translation_delta_weight(a[[layer]]))
+            if(layer <= (length(weights) - 1))
+                dt_da[[layer]] = translation_delta_x(weights[[layer + 1]])
+
+        }
+
+        weights[[2]] =
+            weights[[2]] - gamma *
+            t(t(dc_da * da_dt[[2]]) %*% dt_dw[[2]])
+
+        weights[[1]] =
+            weights[[1]] - gamma *
+            t(t((dc_da * da_dt[[2]]) %*% dt_da[[1]] * da_dt[[1]]) %*%
+              dt_dw[[1]])
+
 
     }
+}
+
+predict = function(data, model){
 }
