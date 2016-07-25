@@ -7,9 +7,11 @@ library(data.table)
 library(magrittr)
 library(dplyr)
 
+mnist_path = "~/Github/deep_learning/mnist/data/mnist.csv"
+
 ## Read the data
 mnist =
-    fread(input = "mnist.csv",
+    fread(input = mnist_path,
           stringsAsFactors = FALSE,
           header = TRUE)
 
