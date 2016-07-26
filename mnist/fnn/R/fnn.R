@@ -51,9 +51,7 @@ train = function(data,
                  sampling_pct = 0.3,
                  gamma = 1e-3){
     i = 1
-    c_old = -Inf
-
-
+    c_old = Inf
 
     n = NROW(data)
     size = c(ncol(data), ncol(weights[[1]]), ncol(weights[[2]]))
@@ -81,8 +79,8 @@ train = function(data,
                      matrix(0, nr = size[1], nc = size[3]))
         dt_dw = list(matrix(0, nr = size[1], nc = size[2]),
                      matrix(0, nr = size[1], nc = size[3]))
-        dt_da = list(matrix(0, nr = size[2], size[3]),
-                     1)
+        dt_da = list(matrix(0, nr = size[2], nc = size[1]),
+                     diag(1, nr = size[3], nc = size[3]))
 
 
         ## Forward propagation
@@ -93,7 +91,11 @@ train = function(data,
 
         c = cost(train_data_label, a[[3]])
         message("Cost: ", c)
-        if((c - c_old) < tol)
+
+        ## NOTE (Michael): We need to use the absolute value as we are using
+        ##                 stochastic gradient descent. Need to implement better
+        ##                 convergence criteria.
+        if(abs(c - c_old) < tol)
             break
 
         ## Calculate the number correctly classified
@@ -102,31 +104,30 @@ train = function(data,
         message("Percentage classified correctly: ",
                 round(sum(actual_label == pred)/n_sample * 100, 4), "%")
 
-        ## c_old = c
+        c_old = c
         i = i + 1
 
         ## Back propagation
         ##
 
         dc_da = cost_delta(train_data_label, a[[length(a)]])
-        for(layer in 1:length(weights)){
+
+        w_tmp = weights
+        ## dc_dt = t(dc_da * da_dt[[2]])
+        ## dt_da[[3]] = dc_da
+        ## dt_dt = 1
+        dc_dt = dc_da
+
+        for(layer in length(weights):1){
             da_dt[[layer]] = activation_delta(t[[layer + 1]])
             dt_dw[[layer]] = t(translation_delta_weight(a[[layer]]))
             if(layer <= (length(weights) - 1))
                 dt_da[[layer]] = translation_delta_x(weights[[layer + 1]])
-
+            dc_dt = (dc_dt %*% dt_da[[layer]]) * da_dt[[layer]]
+            w_tmp[[layer]] =
+                w_tmp[[layer]] - gamma * t(t(dc_dt) %*% dt_dw[[layer]])
         }
-
-        weights[[2]] =
-            weights[[2]] - gamma *
-            t(t(dc_da * da_dt[[2]]) %*% dt_dw[[2]])
-
-        weights[[1]] =
-            weights[[1]] - gamma *
-            t(t((dc_da * da_dt[[2]]) %*% dt_da[[1]] * da_dt[[1]]) %*%
-              dt_dw[[1]])
-
-
+        weights = w_tmp
     }
 }
 
