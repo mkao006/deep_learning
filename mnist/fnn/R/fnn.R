@@ -180,5 +180,5 @@ predict = function(data, model){
     forward =
         with(model,
              fp(data, model$weights, activationFUN))
-    forward$activation_layer[n.layers]
+    forward$activation_layer[[n.layers]]
 }
