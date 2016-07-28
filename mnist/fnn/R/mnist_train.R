@@ -3,7 +3,7 @@ if(!"train_data" %in% ls()){
     source("mnist_loader.R")
 
     ## Subset the data
-    n = 1000
+    n = 10000
     train_data = train_data[1:n, ]
     train_data_label = train_data_label[1:n]
 
@@ -27,12 +27,18 @@ if(!"train_data" %in% ls()){
 }
 source("fnn.R")
 
+bin2class = function(data){
+    apply(data, 1, which.max) - 1
+}
+
+
 ## Initialisation
-size = c(785, 50, 30, 15, 10)
+size = c(785, 50, 10)
 gamma = 1e-3
-maxIter = 1000
+maxIter = 10000
 tol = 1e-10
 
+## Build the model
 model = fnn(data = train_data,
             label = train_data_label_bin,
             size = c(785, 30, 10),
@@ -45,5 +51,7 @@ model = fnn(data = train_data,
             gamma = gamma,
             sampling_pct = 0.1)
 
+## Make prediction
 predicted = predict(test_data, model)
-
+predictedClass = bin2class(predicted)
+sum(test_data_label == predictedClass)/length(test_data_label)
