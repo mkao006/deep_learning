@@ -165,7 +165,7 @@ fnn = function(data,
     }
 
     ## Return model
-    model = list(data = data,
+    model = list(model_data = data,
                  label = label,
                  size = size,
                  costFUN = costFUN,
