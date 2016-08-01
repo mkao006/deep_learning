@@ -112,8 +112,8 @@ sgd = function(data,
                costDerivFUN,
                activationDerivFUN,
                maxIter,
-               sampling_pct,
-               gamma){
+               gamma,
+               batchSize = 50){
 
     ## Initialisation
     n_data= nrow(data)
@@ -123,39 +123,53 @@ sgd = function(data,
 
     ## Start stochastic gradient descent
     while(i <= maxIter){
-        n_sample = floor(n_data * sampling_pct)
-        index_sample = sample(n_data, n_sample)
-        train_data = data[index_sample, ]
-        train_data_label = label[index_sample, ]
+        shuffleIndex = sample(n_data, n_data)
+        shuffledData = data[shuffleIndex, ]
+        shuffledLabel = label[shuffleIndex, ]
+        n_sample = floor(n_data * 1/batchSize)
+        for(batch in 1:batchSize){
+            index_sample = 1:n_sample + ((batch - 1) * n_sample)
+            train_data = shuffledData[index_sample, ]
+            train_data_label = shuffledLabel[index_sample, ]
 
-        ## Forward propagation
-        forward = fp(data = train_data,
-                     weights = weights,
-                     activationFUN = activationFUN)
+            ## Forward propagation
+            forward = fp(data = train_data,
+                         weights = weights,
+                         activationFUN = activationFUN)
 
-        ## Compute the cost
-        cost = costFUN(train_data_label, forward$activation_layer[[n.layers]])
+            ## TODO (Michael): Need a way to identify the convergence of the
+            ##                 stochastic gradient descent.
+
+            ## Back propagation
+            weights = bp(label = train_data_label,
+                         weights = weights,
+                         fp = forward,
+                         costDerivFUN = costDerivFUN,
+                         activationDerivFUN = activationDerivFUN,
+                         gamma)
+        }
+
+        finalForward =
+            fp(data = shuffledData,
+               weights = weights,
+               activationFUN = activationFUN)
+        cost =
+            costFUN(shuffledLabel, finalForward$activation_layer[[n.layers]])
         message("Cost: ", cost)
 
-        ## TODO (Michael): Need a way to identify the convergence of the
-        ##                 stochastic gradient descent.
-
         ## Calculate the number correctly classified
-        pred = apply(forward$activation_layer[[n.layers]], 1, which.max) - 1
-        actual_label = apply(train_data_label, 1, which.max) - 1
+        pred = apply(finalForward$activation_layer[[n.layers]], 1, which.max) - 1
+        actual_label = apply(shuffledLabel, 1, which.max) - 1
         message("Percentage classified correctly: ",
-                round(sum(actual_label == pred)/n_sample * 100, 4), "%")
+                round(sum(actual_label == pred)/n_data * 100, 4), "%")
 
         ## Increment i
         i = i + 1
 
-        ## Back propagation
-        weights = bp(label = train_data_label,
-                     weights = weights,
-                     fp = forward,
-                     costDerivFUN = costDerivFUN,
-                     activationDerivFUN = activationDerivFUN,
-                     gamma)
+        ## ## Shrink gamma
+        ## gamma = gamma * 0.98
+        ## print(gamma)
+
     }
     weights
 }
@@ -172,8 +186,8 @@ fnn = function(data,
                maxIter,
                tol,
                stochastic = TRUE,
-               sampling_pct = 0.3,
-               gamma = 1e-3){
+               gamma = 1e-3,
+               batchSize = 20){
 
     ## Check
     if(ncol(data) != size[1])
@@ -191,8 +205,8 @@ fnn = function(data,
             activationDerivFUN = activationDerivFUN,
             costDerivFUN = costDerivFUN,
             maxIter = maxIter,
-            sampling_pct = sampling_pct,
-            gamma = gamma)
+            gamma = gamma,
+            batchSize = batchSize)
 
     ## Return model
     model = list(model_data = data,
