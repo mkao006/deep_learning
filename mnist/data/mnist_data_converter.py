@@ -43,7 +43,7 @@ validation_data = pandas.DataFrame(mnist[1][0])
 validation_data['label'] = mnist[1][1]
 validation_data['set'] = "validation"
 test_data = pandas.DataFrame(mnist[2][0])
-test_data['label'] = mnist[1][1]
+test_data['label'] = mnist[2][1]
 test_data['set'] = "test"
 
 train_data = train_data.append(validation_data)
