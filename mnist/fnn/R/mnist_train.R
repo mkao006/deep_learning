@@ -18,9 +18,8 @@ if(!"train_data" %in% ls()){
 
 ## Initialisation
 size = c(785, 30, 10)
-gamma = 1e-3
-maxIter = 5000
-tol = 1e-10
+gamma = 1e-4
+maxIter = 100
 
 ## Build the model
 model = fnn(data = train_data,
@@ -31,9 +30,8 @@ model = fnn(data = train_data,
             costDerivFUN = cross_entropy_delta,
             activationDerivFUN = sigmoid_delta,
             maxIter = maxIter,
-            tol = tol,
             gamma = gamma,
-            sampling_pct = 0.1)
+            batchSize = 20)
 
 ## Make prediction
 trainPredicted = predict(train_data, model)
