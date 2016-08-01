@@ -39,7 +39,8 @@ initialise_weights = function(size){
     weights = vector(mode = "list", layers)
     for(layer in 1:layers){
         weights[[layer]] =
-            apply(X = matrix(rnorm(size[layer] * size[layer + 1]),
+            apply(X = matrix(rnorm(size[layer] * size[layer + 1],
+                                   mean = 0, sd = 0.01),
                              nr = size[layer],
                              nc = size[layer + 1]),
                   MARGIN = 2,
@@ -67,9 +68,43 @@ fp = function(data, weights, activationFUN){
          activation_layer = activation_layer)
 }
 
+bp = function(label, weights, fp, costDerivFUN, activationDerivFUN, gamma){
+    n.layers = length(weights) + 1
+    w_tmp = weights
+    dt_dw = vector("list", n.layers - 1)
+    dt_da = vector("list", n.layers - 2)
+    da_dt = vector("list", n.layers - 1)
 
+    dc_da =
+        costDerivFUN(label, fp$activation_layer[[n.layers]])
+    da_dt[[n.layers - 1]] =
+        activationDerivFUN(fp$translation_layer[[n.layers]])
+    dc_dt = dc_da * da_dt[[n.layers - 1]]
+    dt_dw[[n.layers - 1]] =
+        t(translation_delta_weight(fp$activation_layer[[n.layers - 1]]))
+    w_tmp[[n.layers - 1]] =
+        w_tmp[[n.layers - 1]] - gamma * t(t(dc_dt) %*% dt_dw[[n.layers - 1]])
 
-fnn = function(data,
+    for(layer in (n.layers - 2):1){
+        ## Calculate individual derivatives
+        da_dt[[layer]] =
+            activationDerivFUN(fp$translation_layer[[layer + 1]])
+        dt_dw[[layer]] =
+            t(translation_delta_weight(fp$activation_layer[[layer]]))
+        dt_da[[layer]] =
+            translation_delta_x(weights[[layer + 1]])
+
+        ## Update derivative of cost to each layer
+        dc_dt = (dc_dt %*% dt_da[[layer]]) * da_dt[[layer]]
+
+        ## Update the weights
+        w_tmp[[layer]] =
+            w_tmp[[layer]] - gamma * t(t(dc_dt) %*% dt_dw[[layer]])
+    }
+    w_tmp
+}
+
+sgd = function(data,
                label,
                size,
                costFUN,
@@ -77,39 +112,21 @@ fnn = function(data,
                costDerivFUN,
                activationDerivFUN,
                maxIter,
-               tol,
-               stochastic = TRUE,
-               sampling_pct = 0.3,
-               gamma = 1e-3){
-
-    ## Check
-    if(ncol(data) != size[1])
-        stop("Incorrect input size")
-    if(ncol(label) != size[length(size)])
-        stop("Incorrect output size")
+               sampling_pct,
+               gamma){
 
     ## Initialisation
-    n.sample= size[1]
+    n_data= nrow(data)
     n.layers = length(size)
     weights = initialise_weights(size)
     i = 1
 
-    dt_dw = vector("list", n.layers - 1)
-    dt_da = vector("list", n.layers - 2)
-    da_dt = vector("list", n.layers - 1)
-
     ## Start stochastic gradient descent
     while(i <= maxIter){
-        if(stochastic){
-            n_sample = floor(n.sample * sampling_pct)
-            index_sample = sample(n.sample, n_sample)
-            train_data = data[index_sample, ]
-            train_data_label = label[index_sample, ]
-        } else {
-            n_sample = n.sample
-            train_data = data
-            train_data_label = label
-        }
+        n_sample = floor(n_data * sampling_pct)
+        index_sample = sample(n_data, n_sample)
+        train_data = data[index_sample, ]
+        train_data_label = label[index_sample, ]
 
         ## Forward propagation
         forward = fp(data = train_data,
@@ -133,36 +150,49 @@ fnn = function(data,
         i = i + 1
 
         ## Back propagation
-        w_tmp = weights
-
-        dc_da =
-            costDerivFUN(train_data_label, forward$activation_layer[[n.layers]])
-        da_dt[[n.layers - 1]] =
-            activationDerivFUN(forward$translation_layer[[n.layers]])
-        dc_dt = dc_da * da_dt[[n.layers - 1]]
-        dt_dw[[n.layers - 1]] =
-            t(translation_delta_weight(forward$activation_layer[[n.layers - 1]]))
-        w_tmp[[n.layers - 1]] =
-            w_tmp[[n.layers - 1]] - gamma * t(t(dc_dt) %*% dt_dw[[n.layers - 1]])
-
-        for(layer in (n.layers - 2):1){
-            ## Calculate individual derivatives
-            da_dt[[layer]] =
-                activationDerivFUN(forward$translation_layer[[layer + 1]])
-            dt_dw[[layer]] =
-                t(translation_delta_weight(forward$activation_layer[[layer]]))
-            dt_da[[layer]] =
-                translation_delta_x(weights[[layer + 1]])
-
-            ## Update derivative of cost to each layer
-            dc_dt = (dc_dt %*% dt_da[[layer]]) * da_dt[[layer]]
-
-            ## Update the weights
-            w_tmp[[layer]] =
-                w_tmp[[layer]] - gamma * t(t(dc_dt) %*% dt_dw[[layer]])
-        }
-        weights = w_tmp
+        weights = bp(label = train_data_label,
+                     weights = weights,
+                     fp = forward,
+                     costDerivFUN = costDerivFUN,
+                     activationDerivFUN = activationDerivFUN,
+                     gamma)
     }
+    weights
+}
+
+
+
+fnn = function(data,
+               label,
+               size,
+               costFUN,
+               activationFUN,
+               costDerivFUN,
+               activationDerivFUN,
+               maxIter,
+               tol,
+               stochastic = TRUE,
+               sampling_pct = 0.3,
+               gamma = 1e-3){
+
+    ## Check
+    if(ncol(data) != size[1])
+        stop("Incorrect input size")
+    if(ncol(label) != size[length(size)])
+        stop("Incorrect output size")
+
+    ## Estimate the model
+    weights =
+        sgd(data = data,
+            label = label,
+            size = size,
+            costFUN = costFUN,
+            activationFUN = activationFUN,
+            activationDerivFUN = activationDerivFUN,
+            costDerivFUN = costDerivFUN,
+            maxIter = maxIter,
+            sampling_pct = sampling_pct,
+            gamma = gamma)
 
     ## Return model
     model = list(model_data = data,
