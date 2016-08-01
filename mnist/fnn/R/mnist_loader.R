@@ -25,7 +25,9 @@ train_data =
     mnist %>%
     subset(., set == "train") %>%
     select(., matches("^[0-9]")) %>%
-    as.matrix
+    unname %>%
+    as.matrix %>%
+    cbind(1, .)
 
 ## Create the training label
 train_data_label =
@@ -40,13 +42,15 @@ validation_data =
     mnist %>%
     subset(., set == "validation") %>%
     select(., matches("^[0-9]")) %>%
-    as.matrix
+    as.matrix %>%
+    cbind(1, .)
 
 ## Create the validation label
 validation_data_label =
     mnist %>%
     subset(., set == "validation") %>%
     select(., label) %>%
+    unname %>%
     as.matrix
 
 
@@ -55,7 +59,9 @@ test_data =
     mnist %>%
     subset(., set == "test") %>%
     select(., matches("^[0-9]")) %>%
-    as.matrix
+    unname %>%
+    as.matrix %>%
+    cbind(1, .)
 
 ## Create the testing label
 test_data_label =
@@ -63,3 +69,20 @@ test_data_label =
     subset(., set == "test") %>%
     select(., label) %>%
     as.matrix
+
+bin2class = function(data){
+    apply(data, 1, which.max) - 1
+}
+
+class2bin = function(data){
+    ## Convert the binary to 10 classes
+    data_bin =
+        matrix(0,
+               nc = length(unique(data)),
+               nr = length(data))
+
+    ind = matrix(c(1:length(data),
+                   data + 1), nc = 2)
+    data_bin[ind] = 1
+    data_bin
+}
