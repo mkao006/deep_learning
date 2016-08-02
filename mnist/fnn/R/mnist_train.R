@@ -18,8 +18,8 @@ if(!"train_data" %in% ls()){
 
 ## Initialisation
 size = c(785, 30, 10)
-gamma = 1e-4
-maxIter = 100
+gamma = 1e-3
+maxIter = 500
 
 ## Build the model
 model = fnn(data = train_data,
