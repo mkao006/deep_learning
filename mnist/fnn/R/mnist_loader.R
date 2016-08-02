@@ -26,8 +26,7 @@ train_data =
     subset(., set == "train") %>%
     select(., matches("^[0-9]")) %>%
     unname %>%
-    as.matrix %>%
-    cbind(1, .)
+    as.matrix
 
 ## Create the training label
 train_data_label =
@@ -42,8 +41,7 @@ validation_data =
     mnist %>%
     subset(., set == "validation") %>%
     select(., matches("^[0-9]")) %>%
-    as.matrix %>%
-    cbind(1, .)
+    as.matrix
 
 ## Create the validation label
 validation_data_label =
@@ -60,8 +58,7 @@ test_data =
     subset(., set == "test") %>%
     select(., matches("^[0-9]")) %>%
     unname %>%
-    as.matrix %>%
-    cbind(1, .)
+    as.matrix
 
 ## Create the testing label
 test_data_label =
