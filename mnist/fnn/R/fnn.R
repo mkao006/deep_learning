@@ -247,7 +247,8 @@ fnn = function(data,
                tol,
                stochastic = TRUE,
                gamma = 1e-3,
-               batchSize = 20){
+               batchSize = 20,
+               samplingPct){
 
     ## Check
     if(ncol(data) != size[1])
