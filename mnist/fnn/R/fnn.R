@@ -23,7 +23,10 @@ cross_entropy_delta = function(p, q){
 }
 
 sigmoid_delta = function(x){
-    exp(x)/((1 + exp(x))^2)
+    delta = exp(-x)/((1 + exp(-x))^2)
+    ## NOTE (Michael): This is to avoid numerical error
+    delta[is.nan(delta)] = 0
+    delta
 }
 
 translation_delta_weight= function(x){
