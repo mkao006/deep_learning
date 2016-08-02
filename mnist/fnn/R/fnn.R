@@ -177,6 +177,63 @@ sgd = function(data,
     weights
 }
 
+rsgd = function(data,
+                label,
+                size,
+                costFUN,
+                activationFUN,
+                costDerivFUN,
+                activationDerivFUN,
+                maxIter,
+                gamma,
+                batchSize = 50,
+                samplingPct = 0.3){
+
+    ## Initialisation
+    n_data= nrow(data)
+    n.layers = length(size)
+    weights = initialise_weights(size)
+    i = 1
+    n_sample = floor(n_data * samplingPct)
+    while(i <= maxIter){
+
+        index_sample = sample(n_data, n_sample)
+        train_data = data[index_sample, ]
+        train_data_label = label[index_sample, ]
+
+        ## Forward propagation
+        forward = fp(data = train_data,
+                     weights = weights,
+                     activationFUN = activationFUN)
+        cost =
+            costFUN(train_data_label, forward$activation_layer[[n.layers]])
+
+        message("Cost: ", cost)
+
+        ## TODO (Michael): Need a way to identify the convergence of the
+        ##                 stochastic gradient descent.
+
+        ## Back propagation
+        weights = bp(label = train_data_label,
+                     weights = weights,
+                     fp = forward,
+                     costDerivFUN = costDerivFUN,
+                     activationDerivFUN = activationDerivFUN,
+                     gamma)
+
+        ## Calculate the number correctly classified
+        pred = apply(forward$activation_layer[[n.layers]], 1, which.max) - 1
+        actual_label = apply(train_data_label, 1, which.max) - 1
+        message("Percentage classified correctly: ",
+                round(sum(actual_label == pred)/n_sample * 100, 4), "%")
+
+        ## Increment i
+        i = i + 1
+
+    }
+    weights
+}
+
 
 
 fnn = function(data,
@@ -199,17 +256,30 @@ fnn = function(data,
         stop("Incorrect output size")
 
     ## Estimate the model
+    ## weights =
+    ##     sgd(data = data,
+    ##         label = label,
+    ##         size = size,
+    ##         costFUN = costFUN,
+    ##         activationFUN = activationFUN,
+    ##         activationDerivFUN = activationDerivFUN,
+    ##         costDerivFUN = costDerivFUN,
+    ##         maxIter = maxIter,
+    ##         gamma = gamma,
+    ##         batchSize = batchSize)
+
     weights =
-        sgd(data = data,
-            label = label,
-            size = size,
-            costFUN = costFUN,
-            activationFUN = activationFUN,
-            activationDerivFUN = activationDerivFUN,
-            costDerivFUN = costDerivFUN,
-            maxIter = maxIter,
-            gamma = gamma,
-            batchSize = batchSize)
+        rsgd(data = data,
+             label = label,
+             size = size,
+             costFUN = costFUN,
+             activationFUN = activationFUN,
+             activationDerivFUN = activationDerivFUN,
+             costDerivFUN = costDerivFUN,
+             maxIter = maxIter,
+             gamma = gamma,
+             batchSize = batchSize,
+             samplingPct = samplingPct)
 
     ## Return model
     model = list(model_data = data,
