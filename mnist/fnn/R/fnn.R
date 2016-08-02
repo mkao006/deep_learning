@@ -12,8 +12,8 @@ sigmoid = function(x){
     1/(1 + exp(-x))
 }
 
-translation = function(x, w){
-    x %*% w
+translation = function(x, w, b){
+    t(t(x %*% w) + c(b))
 }
 
 cross_entropy_delta = function(p, q){
@@ -33,9 +33,14 @@ translation_delta_weight= function(x){
     t(x)
 }
 
+translation_delta_bias = function(x){
+    matrix(1, nr = 1, nc = nrow(x))
+}
+
 translation_delta_x = function(w){
     t(w)
 }
+
 
 initialise_weights = function(size){
     layers = length(size) - 1
@@ -52,7 +57,18 @@ initialise_weights = function(size){
     weights
 }
 
-fp = function(data, weights, activationFUN){
+initialise_bias = function(size){
+    layers = length(size) - 1
+    bias = vector(mode = "list", layers)
+    for(layer in 1:layers){
+        bias[[layer]] = matrix(1, nc = 1, nr = size[layer + 1])
+    }
+    bias
+}
+
+
+
+fp = function(data, weights, bias, activationFUN){
 
     n.layers = length(weights) + 1
 
@@ -63,7 +79,7 @@ fp = function(data, weights, activationFUN){
 
     for(layer in 1:(n.layers - 1)){
         translation_layer[[layer + 1]] =
-            translation(translation_layer[[layer]], weights[[layer]])
+            translation(translation_layer[[layer]], weights[[layer]], bias[[layer]])
         activation_layer[[layer + 1]] =
             activationFUN(translation_layer[[layer + 1]])
     }
@@ -71,10 +87,12 @@ fp = function(data, weights, activationFUN){
          activation_layer = activation_layer)
 }
 
-bp = function(label, weights, fp, costDerivFUN, activationDerivFUN, gamma){
+bp = function(label, weights, bias, fp, costDerivFUN, activationDerivFUN, gamma){
     n.layers = length(weights) + 1
     w_tmp = weights
+    b_tmp = bias
     dt_dw = vector("list", n.layers - 1)
+    dt_db = vector("list", n.layers - 1)
     dt_da = vector("list", n.layers - 2)
     da_dt = vector("list", n.layers - 1)
 
@@ -85,8 +103,12 @@ bp = function(label, weights, fp, costDerivFUN, activationDerivFUN, gamma){
     dc_dt = dc_da * da_dt[[n.layers - 1]]
     dt_dw[[n.layers - 1]] =
         t(translation_delta_weight(fp$activation_layer[[n.layers - 1]]))
+    dt_db[[n.layers - 1]] =
+        t(translation_delta_bias(fp$activation_layer[[n.layers - 1]]))
     w_tmp[[n.layers - 1]] =
         w_tmp[[n.layers - 1]] - gamma * t(t(dc_dt) %*% dt_dw[[n.layers - 1]])
+    b_tmp[[n.layers - 1]] =
+        b_tmp[[n.layers - 1]] - gamma * t(dc_dt) %*% dt_db[[n.layers - 1]]
 
     for(layer in (n.layers - 2):1){
         ## Calculate individual derivatives
@@ -94,6 +116,8 @@ bp = function(label, weights, fp, costDerivFUN, activationDerivFUN, gamma){
             activationDerivFUN(fp$translation_layer[[layer + 1]])
         dt_dw[[layer]] =
             t(translation_delta_weight(fp$activation_layer[[layer]]))
+        dt_db[[layer]] =
+            t(translation_delta_bias(fp$activation_layer[[layer]]))
         dt_da[[layer]] =
             translation_delta_x(weights[[layer + 1]])
 
@@ -103,8 +127,10 @@ bp = function(label, weights, fp, costDerivFUN, activationDerivFUN, gamma){
         ## Update the weights
         w_tmp[[layer]] =
             w_tmp[[layer]] - gamma * t(t(dc_dt) %*% dt_dw[[layer]])
+        b_tmp[[layer]] =
+            b_tmp[[layer]] - gamma * t(dc_dt) %*% dt_db[[layer]]
     }
-    w_tmp
+    list(weights = w_tmp, bias = b_tmp)
 }
 
 sgd = function(data,
@@ -122,6 +148,7 @@ sgd = function(data,
     n_data= nrow(data)
     n.layers = length(size)
     weights = initialise_weights(size)
+    bias = initialise_bias(size)
     i = 1
 
     ## Start stochastic gradient descent
@@ -138,6 +165,7 @@ sgd = function(data,
             ## Forward propagation
             forward = fp(data = train_data,
                          weights = weights,
+                         bias = bias,
                          activationFUN = activationFUN)
 
             ## TODO (Michael): Need a way to identify the convergence of the
@@ -146,6 +174,7 @@ sgd = function(data,
             ## Back propagation
             weights = bp(label = train_data_label,
                          weights = weights,
+                         bias = bias,
                          fp = forward,
                          costDerivFUN = costDerivFUN,
                          activationDerivFUN = activationDerivFUN,
@@ -155,6 +184,7 @@ sgd = function(data,
         finalForward =
             fp(data = shuffledData,
                weights = weights,
+               bias = bias,
                activationFUN = activationFUN)
         cost =
             costFUN(shuffledLabel, finalForward$activation_layer[[n.layers]])
@@ -174,7 +204,7 @@ sgd = function(data,
         ## print(gamma)
 
     }
-    weights
+    list(weights = weights, bias = bias)
 }
 
 rsgd = function(data,
@@ -193,6 +223,8 @@ rsgd = function(data,
     n_data= nrow(data)
     n.layers = length(size)
     weights = initialise_weights(size)
+    bias = initialise_bias(size)
+
     i = 1
     n_sample = floor(n_data * samplingPct)
     while(i <= maxIter){
@@ -204,6 +236,7 @@ rsgd = function(data,
         ## Forward propagation
         forward = fp(data = train_data,
                      weights = weights,
+                     bias = bias,
                      activationFUN = activationFUN)
         cost =
             costFUN(train_data_label, forward$activation_layer[[n.layers]])
@@ -214,12 +247,15 @@ rsgd = function(data,
         ##                 stochastic gradient descent.
 
         ## Back propagation
-        weights = bp(label = train_data_label,
-                     weights = weights,
-                     fp = forward,
-                     costDerivFUN = costDerivFUN,
-                     activationDerivFUN = activationDerivFUN,
-                     gamma)
+        back = bp(label = train_data_label,
+                  weights = weights,
+                  bias = bias,
+                  fp = forward,
+                  costDerivFUN = costDerivFUN,
+                  activationDerivFUN = activationDerivFUN,
+                  gamma)
+        bias = back$bias
+        weights = back$weights
 
         ## Calculate the number correctly classified
         pred = apply(forward$activation_layer[[n.layers]], 1, which.max) - 1
@@ -231,7 +267,7 @@ rsgd = function(data,
         i = i + 1
 
     }
-    weights
+    list(weights = weights, bias = bias)
 }
 
 
@@ -269,7 +305,7 @@ fnn = function(data,
     ##         gamma = gamma,
     ##         batchSize = batchSize)
 
-    weights =
+    params =
         rsgd(data = data,
              label = label,
              size = size,
@@ -288,7 +324,8 @@ fnn = function(data,
                  size = size,
                  costFUN = costFUN,
                  activationFUN = activationFUN,
-                 weights = weights)
+                 weights = params$weights,
+                 bias = params$bias)
     class(model) = "fnn"
     model
 }
@@ -297,6 +334,6 @@ predict = function(data, model){
     n.layers = length(model$size)
     forward =
         with(model,
-             fp(data, model$weights, activationFUN))
+             fp(data, model$weights, model$bias, activationFUN))
     forward$activation_layer[[n.layers]]
 }
