@@ -27,16 +27,16 @@ def cross_entropy_delta(p, q):
     return (p - q)/(q * (q - 1.0))/q.size
 
 
-def transformation(x, w, b):
+def trans(x, w, b):
     return np.dot(x, w) + b
 
-def transformation_delta_weights(x):
+def trans_delta_weights(x):
     return x.T
 
-def transformation_delta_biases(x):
+def trans_delta_biases(x):
     return np.ones(x.shape[0])
 
-def transformation_delta_activation(w):
+def trans_delta_activation(w):
     return w.T
 
 
@@ -52,7 +52,7 @@ class fnn(object):
         self.weights = [np.random.randn(input, output)
                         for input, output in zip(size[:-1], size[1:])]
         self.activation = [None] * (self.num_layer - 1)
-        self.transformation = [None] * (self.num_layer - 1)
+        self.trans = [None] * (self.num_layer - 1)
 
     def feedforward(self, x):
         """Performs the feedforward, the transformation and the activation layers
@@ -61,16 +61,16 @@ class fnn(object):
         """
         ## Initialise, although we can assign x to activation and then change
         ## the index
-        self.transformation[0] = np.dot(x, self.weights[0]) + self.biases[0]
-        self.activation[0] = sigmoid(self.transformation[0])
+        self.trans[0] = np.dot(x, self.weights[0]) + self.biases[0]
+        self.activation[0] = sigmoid(self.trans[0])
 
         for layer in range(1, self.num_layer - 1):
             ## Perform transformation
-            self.transformation[layer] = np.dot(self.activation[layer - 1],
-                                                self.weights[layer]) + \
-                                                self.biases[layer]
+            self.trans[layer] = np.dot(self.activation[layer - 1],
+                                       self.weights[layer]) + \
+                                       self.biases[layer]
             ## Perform activation
-            self.activation[layer] = sigmoid(self.transformation[layer])
+            self.activation[layer] = sigmoid(self.trans[layer])
 
     def backpropagation(self, x, y, gamma):
         """Take the activation and trasformation layer, and updates the biases and
@@ -86,17 +86,18 @@ class fnn(object):
                        sigmoid_delta(self.activation[-1]))
         ## Derivative of transformation to weights
         nabla_weights[-1] = np.dot(delta,
-                                   transformation_delta_weights(self.transformation[-1]))
-        ## Derivative of transformation to bias
+                                   trans_delta_weights(self.trans[-1]))
+        ## Derivative of trans to bias
         nabla_biases[-1] = np.dot(delta,
-                                  transformation_delta_biases(self.weights[-1]))
+                                  trans_delta_biases(self.weights[-1]))
         for layer in xrange(2, self.num_layers):
             delta = np.dot(np.dot(delta,
-                                  transformation_delta_activation(self.weights[-layer])),
+                                  trans_delta_activation(self.weights[-layer])),
                            sigmoid_delta(self.activation[-layer]))
-            nabla_weights[-layer] = np.dot(delta, transformation_delta_weights(self.transformation[-layer]))
+            nabla_weights[-layer] = np.dot(delta,
+                                           trans_delta_weights(self.trans[-layer]))
             nabla_biases[-layer] = np.dot(delta,
-                                   transformation_delta_weights(self.transformation[-layer]))
+                                          trans_delta_weights(self.trans[-layer]))
 
         self.weights = [w - gamma * nw
                         for w, nw in zip(self.weights, nabla_weights)]
