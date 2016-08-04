@@ -4,7 +4,7 @@ if(!"train_data" %in% ls()){
     source("mnist_loader.R")
 
     ## Subset the data
-    n = 10000
+    n = 50000
     train_data = train_data[1:n, ]
     train_data_label = train_data_label[1:n]
 
@@ -17,9 +17,9 @@ if(!"train_data" %in% ls()){
 
 
 ## Initialisation
-size = c(785, 30, 10)
-gamma = 1e-4
-maxIter = 500
+size = c(784, 30, 10)
+gamma = 3
+maxIter = 300
 
 ## Build the model
 model = fnn(data = train_data,
@@ -31,8 +31,9 @@ model = fnn(data = train_data,
             activationDerivFUN = sigmoid_delta,
             maxIter = maxIter,
             gamma = gamma,
-            batchSize = 20,
-            samplingPct = 0.3)
+            batchSize = 10,
+            samplingPct = 0.1)
+
 
 ## Make prediction
 trainPredicted = predict(train_data, model)
@@ -46,5 +47,3 @@ sum(test_data_label == testPredictedClass)/length(test_data_label)
 validationPredicted = predict(validation_data, model)
 validationPredictedClass = bin2class(validationPredicted)
 sum(validation_data_label == validationPredictedClass)/length(validation_data_label)
-
-
