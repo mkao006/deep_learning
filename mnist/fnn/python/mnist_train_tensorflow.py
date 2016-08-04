@@ -20,23 +20,28 @@ import tensorflow as tf
 x = tf.placeholder(tf.float32, [None, 784])
 y = tf.placeholder(tf.float32, [None, 10])
 
-## Specify the model (This is a multinomial regression)
-w1 = tf.Variable(tf.zeros([784, 10]))
-b1 = tf.Variable(tf.zeros([10]))
-hidden1 = tf.matmul(x, w1) + b1
-# hidden1 = tf.sigmoid(tf.matmul(x, w1) + b1)
-# w2 = tf.Variable(tf.zeros([30, 10]))
-# b2 = tf.Variable(tf.zeros([10]))
-# hidden2 = tf.matmul(hidden1, w2) + b2
-y_hat = tf.nn.softmax(hidden1)
-# y_hat = tf.sigmoid(hidden1)
+## Specify the model
+## multi-nomial regression
+# w = tf.Variable(tf.zeros([784, 10]))
+# b = tf.Variable(tf.zeros([10]))
+# hidden1 = tf.matmul(x, w) + b
+# y_hat = tf.nn.softmax(hidden1)
+
+## two layer multi-nomial regression
+w1 = tf.Variable(tf.zeros([784, 15]))
+b1 = tf.Variable(tf.zeros([15]))
+hidden1 = tf.nn.sigmoid(tf.matmul(x, w1) + b1)
+w2 = tf.Variable(tf.zeros([15, 10]))
+b2 = tf.Variable(tf.zeros([10]))
+hidden2 = tf.matmul(hidden1, w2) + b2
+y_hat = tf.nn.softmax(hidden2)
 
 ## Specify the cost function
 cross_entropy = tf.reduce_mean(-tf.reduce_sum(y * tf.log(y_hat),
                                               reduction_indices=[1]))
 
 ## Specify the training algorithm
-train_step = tf.train.GradientDescentOptimizer(0.5).minimize(cross_entropy)
+train_step = tf.train.GradientDescentOptimizer(0.8).minimize(cross_entropy)
 
 
 ## Speficy the comparison
@@ -57,11 +62,18 @@ init = tf.initialize_all_variables()
 sess = tf.Session()
 sess.run(init)
 
-## Start the training
-for i in range(3000):
-  batch_xs, batch_ys = mnist.train.next_batch(100)
-  sess.run(train_step, feed_dict={x: batch_xs, y: batch_ys})
+## NOTE (Michael): Create a grid here to search for batch_size, iteration and
+##                 gamma.
 
+## Start the training
+for i in range(10000):
+  batch_size = 50
+  batch_xs, batch_ys = mnist.train.next_batch(batch_size)
+  sess.run(train_step, feed_dict={x: batch_xs, y: batch_ys})
+  if(i % 500 == 0):
+    print("batch " + str(i))
+    print(sess.run(accuracy,
+                   feed_dict={x: mnist.train.images, y: mnist.train.labels}))
 
 ## ---------------------------------------------------------------------
 ## Check predictions
