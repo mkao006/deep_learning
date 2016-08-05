@@ -5,7 +5,7 @@ training_data, validation_data, test_data = mnist_loader.load_data_wrapper('/hom
 size = [784, 30, 10]
 ## Model 1
 import fnn
-net = fnn.fnn(size)
+net = fnn.Fnn(size)
 net.train(training_data, 30, 10, 3.0, test_data=test_data)
 
 ## Model 2

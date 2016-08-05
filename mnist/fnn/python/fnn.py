@@ -44,7 +44,7 @@ def trans_delta_activation(w):
 
 
 
-class fnn(object):
+class Fnn(object):
 
     def __init__(self, size):
         self.size = size
@@ -80,7 +80,8 @@ class fnn(object):
         weights
 
         """
-        ## Initialise the nabla (gradient)
+        ## NOTE (Michael): There still seems to be something wrong with the back
+        ##                 propagation. Initialise the nabla (gradient)
         nabla_weights = [np.zeros(w.shape) for w in self.weights]
         nabla_biases = [np.zeros(b.shape) for b in self.biases]
 
