@@ -19,7 +19,7 @@ translation = function(x, w, b){
 cross_entropy_delta = function(p, q){
     k = 1e-15
     sq = ifelse(q == 0, k, ifelse(q == 1, 1 - k, q))
-    (p - sq)/(sq * (sq - 1))
+    (p - sq)/(sq * (sq - 1))/(length(q))
 }
 
 sigmoid_delta = function(x){
@@ -46,13 +46,16 @@ initialise_weights = function(size){
     layers = length(size) - 1
     weights = vector(mode = "list", layers)
     for(layer in 1:layers){
+        ## weights[[layer]] =
+        ##     apply(X = matrix(rnorm(size[layer] * size[layer + 1]),
+        ##                      nr = size[layer],
+        ##                      nc = size[layer + 1]),
+        ##           MARGIN = 2,
+        ##           FUN = function(x) x/sum(x))
         weights[[layer]] =
-            apply(X = matrix(rnorm(size[layer] * size[layer + 1],
-                                   mean = 0, sd = 0.01),
-                             nr = size[layer],
-                             nc = size[layer + 1]),
-                  MARGIN = 2,
-                  FUN = function(x) x/sum(x))
+            matrix(rnorm(size[layer] * size[layer + 1]),
+                   nr = size[layer],
+                   nc = size[layer + 1])
     }
     weights
 }
@@ -61,7 +64,8 @@ initialise_bias = function(size){
     layers = length(size) - 1
     bias = vector(mode = "list", layers)
     for(layer in 1:layers){
-        bias[[layer]] = matrix(1, nc = 1, nr = size[layer + 1])
+        bias[[layer]] = matrix(rnorm(size[layer + 1]),
+                               nc = 1, nr = size[layer + 1])
     }
     bias
 }
@@ -172,13 +176,16 @@ sgd = function(data,
             ##                 stochastic gradient descent.
 
             ## Back propagation
-            weights = bp(label = train_data_label,
-                         weights = weights,
-                         bias = bias,
-                         fp = forward,
-                         costDerivFUN = costDerivFUN,
-                         activationDerivFUN = activationDerivFUN,
-                         gamma)
+            back = bp(label = train_data_label,
+                      weights = weights,
+                      bias = bias,
+                      fp = forward,
+                      costDerivFUN = costDerivFUN,
+                      activationDerivFUN = activationDerivFUN,
+                      gamma)
+            weights = back$weights
+            bias = back$bias
+
         }
 
         finalForward =
@@ -293,30 +300,30 @@ fnn = function(data,
         stop("Incorrect output size")
 
     ## Estimate the model
-    ## weights =
-    ##     sgd(data = data,
-    ##         label = label,
-    ##         size = size,
-    ##         costFUN = costFUN,
-    ##         activationFUN = activationFUN,
-    ##         activationDerivFUN = activationDerivFUN,
-    ##         costDerivFUN = costDerivFUN,
-    ##         maxIter = maxIter,
-    ##         gamma = gamma,
-    ##         batchSize = batchSize)
-
     params =
-        rsgd(data = data,
-             label = label,
-             size = size,
-             costFUN = costFUN,
-             activationFUN = activationFUN,
-             activationDerivFUN = activationDerivFUN,
-             costDerivFUN = costDerivFUN,
-             maxIter = maxIter,
-             gamma = gamma,
-             batchSize = batchSize,
-             samplingPct = samplingPct)
+        sgd(data = data,
+            label = label,
+            size = size,
+            costFUN = costFUN,
+            activationFUN = activationFUN,
+            activationDerivFUN = activationDerivFUN,
+            costDerivFUN = costDerivFUN,
+            maxIter = maxIter,
+            gamma = gamma,
+            batchSize = batchSize)
+
+    ## params =
+    ##     rsgd(data = data,
+    ##          label = label,
+    ##          size = size,
+    ##          costFUN = costFUN,
+    ##          activationFUN = activationFUN,
+    ##          activationDerivFUN = activationDerivFUN,
+    ##          costDerivFUN = costDerivFUN,
+    ##          maxIter = maxIter,
+    ##          gamma = gamma,
+    ##          batchSize = batchSize,
+    ##          samplingPct = samplingPct)
 
     ## Return model
     model = list(model_data = data,
