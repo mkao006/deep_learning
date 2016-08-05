@@ -1,4 +1,5 @@
 import numpy as np
+import random
 
 def sigmoid(z):
     """The sigmoid function."""
@@ -34,7 +35,7 @@ def trans_delta_weights(x):
     return x.T
 
 def trans_delta_biases(x):
-    return np.ones(x.shape[0])
+    return np.ones(x.shape[1])
 
 def trans_delta_activation(w):
     return w.T
@@ -54,7 +55,7 @@ class fnn(object):
         self.activation = [None] * (self.num_layer - 1)
         self.trans = [None] * (self.num_layer - 1)
 
-    def feedforward(self, x):
+    def feedforward(self, x, y):
         """Performs the feedforward, the transformation and the activation layers
         are updated.
 
@@ -72,32 +73,34 @@ class fnn(object):
             ## Perform activation
             self.activation[layer] = sigmoid(self.trans[layer])
 
+        print(cross_entropy(y, self.activation[-1]))
+
     def backpropagation(self, x, y, gamma):
         """Take the activation and trasformation layer, and updates the biases and
         weights
 
         """
         ## Initialise the nabla (gradient)
-        nabla_weights = [np.zeroes(w.shape) for w in self.weights]
+        nabla_weights = [np.zeros(w.shape) for w in self.weights]
         nabla_biases = [np.zeros(b.shape) for b in self.biases]
 
         ## Derivative of cost w.r.t to transformation
-        delta = np.dot(cross_entropy_delta(y, x),
-                       sigmoid_delta(self.activation[-1]))
+        delta = cross_entropy_delta(y, self.activation[-1]) * \
+                sigmoid_delta(self.activation[-1])
         ## Derivative of transformation to weights
         nabla_weights[-1] = np.dot(delta,
                                    trans_delta_weights(self.trans[-1]))
         ## Derivative of trans to bias
         nabla_biases[-1] = np.dot(delta,
                                   trans_delta_biases(self.weights[-1]))
-        for layer in xrange(2, self.num_layers):
-            delta = np.dot(np.dot(delta,
-                                  trans_delta_activation(self.weights[-layer])),
-                           sigmoid_delta(self.activation[-layer]))
+        for layer in xrange(2, self.num_layer):
+            delta = np.dot(delta,
+                           trans_delta_activation(self.weights[-layer + 1]))
+            delta = delta * sigmoid_delta(self.activation[-layer])
             nabla_weights[-layer] = np.dot(delta,
                                            trans_delta_weights(self.trans[-layer]))
             nabla_biases[-layer] = np.dot(delta,
-                                          trans_delta_weights(self.trans[-layer]))
+                                          trans_delta_biases(self.trans[-layer]))
 
         self.weights = [w - gamma * nw
                         for w, nw in zip(self.weights, nabla_weights)]
@@ -109,10 +112,11 @@ class fnn(object):
         method to update the biase, weights, activation and transformation.
 
         """
-        ## Do feedforward
-        self.feedforward()
-        ## Do back propagation
-        self.backpropagation(x, y, gamma)
+        for sx, sy in mini_batch:
+            ## Do feedforward
+            self.feedforward(sx.T, sy.T)
+            ## Do back propagation
+            self.backpropagation(sx.T, sy.T, gamma)
 
 
     def train(self, training_data, epochs, mini_batch_size, gamma, test_data = None):
@@ -120,18 +124,12 @@ class fnn(object):
         for epoch in xrange(epochs):
             ## Shuffle the data
             random.shuffle(training_data)
+            n = len(training_data)
             ## Create the mini batches
             mini_batches = [
-                training_data[k:k+mini_batch_size]
+                training_data[k:k + mini_batch_size]
                 for k in xrange(0, n, mini_batch_size)]
             ## train with each mini batch using back propagation
             for mini_batch in mini_batches:
                 self.train_mini_batch(mini_batch, gamma)
 
-
-
-
-size = [784, 30, 10]
-model = fnn(size)
-simData = np.random.randn(1, 784)
-model.feedforward(simData)
