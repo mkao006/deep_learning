@@ -7,8 +7,10 @@ mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
 ## Initialise parameters
 size = [784, 30, 10]
 gamma = 0.05
+decay = 0.9
 batch_size = 300
 iter = 15001
+p_keep = [0.8, 0.5]
 
 ## Initialise the placeholder for data
 data = tf.placeholder(tf.float32, [None, size[0]])
@@ -31,7 +33,6 @@ b_h2 = init_bias([size[1]])
 b_o = init_bias([size[2]])
 
 ## Create the model
-
 def nnet(data, w_h, w_h2, w_o, b_h, b_h2, b_o, p_keep_input, p_keep_hidden):
     dropped = tf.nn.dropout(data, p_keep_input)
     h = tf.nn.relu(tf.matmul(dropped, w_h) + b_h)
@@ -47,7 +48,7 @@ y_hat = nnet(data, w_h, w_h2, w_o, b_h, b_h2, b_o, p_keep_input, p_keep_hidden)
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(y_hat, label))
 
 ## construct an optimizer
-train_alg = tf.train.RMSPropOptimizer(0.001, 0.9).minimize(cost)
+train_alg = tf.train.RMSPropOptimizer(gamma, decay).minimize(cost)
 
 ## Speficy the comparison
 correct_prediction = tf.equal(tf.argmax(y_hat, 1), tf.argmax(label, 1))
@@ -65,15 +66,15 @@ with tf.Session() as sess:
         batch_xs, batch_ys = mnist.train.next_batch(batch_size)
         sess.run(train_alg, feed_dict={data: batch_xs,
                                        label: batch_ys,
-                                       p_keep_input: 0.8,
-                                       p_keep_hidden: 0.5})
+                                       p_keep_input: p_keep[0],
+                                       p_keep_hidden: p_keep[1]})
         if(i % 1000 == 0):
             print("batch " + str(i))
             print(sess.run(accuracy,
                            feed_dict = {data: mnist.train.images,
                                         label: mnist.train.labels,
-                                         p_keep_input: 0.8,
-                                         p_keep_hidden: 0.5}))
+                                         p_keep_input: p_keep[0],
+                                         p_keep_hidden: p_keep[1]}))
             print(sess.run(accuracy,
                            feed_dict = {data: mnist.test.images,
                                         label: mnist.test.labels,
