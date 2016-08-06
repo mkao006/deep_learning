@@ -52,7 +52,7 @@ class Fnn(object):
         self.biases = [np.random.randn(1, nodes) for nodes in self.size[1:]]
         self.weights = [np.random.randn(input, output)
                         for input, output in zip(size[:-1], size[1:])]
-        self.activation = [None] * (self.num_layer - 1)
+        self.activation = [None] * (self.num_layer)
         self.trans = [None] * (self.num_layer - 1)
 
     def feedforward(self, x, y):
@@ -62,18 +62,20 @@ class Fnn(object):
         """
         ## Initialise, although we can assign x to activation and then change
         ## the index
-        self.trans[0] = np.dot(x, self.weights[0]) + self.biases[0]
-        self.activation[0] = sigmoid(self.trans[0])
+        self.activation[0] = x
 
-        for layer in range(1, self.num_layer - 1):
+        for layer in range(0, self.num_layer - 1):
             ## Perform transformation
-            self.trans[layer] = np.dot(self.activation[layer - 1],
+            self.trans[layer] = np.dot(self.activation[layer],
                                        self.weights[layer]) + \
                                        self.biases[layer]
             ## Perform activation
-            self.activation[layer] = sigmoid(self.trans[layer])
+            self.activation[layer + 1] = sigmoid(self.trans[layer])
 
-        print(cross_entropy(y, self.activation[-1]))
+        cost = cross_entropy(y, self.activation[-1])
+        if(np.isnan(cost)):
+            raise Exception("Cost is nan")
+        print(cost)
 
     def backpropagation(self, x, y, gamma):
         """Take the activation and trasformation layer, and updates the biases and
@@ -87,21 +89,19 @@ class Fnn(object):
 
         ## Derivative of cost w.r.t to transformation
         delta = cross_entropy_delta(y, self.activation[-1]) * \
-                sigmoid_delta(self.activation[-1])
+                sigmoid_delta(self.trans[-1])
         ## Derivative of transformation to weights
-        nabla_weights[-1] = np.dot(delta,
-                                   trans_delta_weights(self.trans[-1]))
+        nabla_weights[-1] = np.dot(trans_delta_weights(self.activation[-2]),
+                                   delta)
         ## Derivative of trans to bias
-        nabla_biases[-1] = np.dot(delta,
-                                  trans_delta_biases(self.weights[-1]))
+        nabla_biases[-1] = delta
         for layer in xrange(2, self.num_layer):
             delta = np.dot(delta,
                            trans_delta_activation(self.weights[-layer + 1]))
-            delta = delta * sigmoid_delta(self.activation[-layer])
-            nabla_weights[-layer] = np.dot(delta,
-                                           trans_delta_weights(self.trans[-layer]))
-            nabla_biases[-layer] = np.dot(delta,
-                                          trans_delta_biases(self.trans[-layer]))
+            delta = delta * sigmoid_delta(self.trans[-layer])
+            nabla_weights[-layer] = np.dot(trans_delta_weights(self.activation[-layer - 1]),
+                                           delta)
+            nabla_biases[-layer] = delta
 
         self.weights = [w - gamma * nw
                         for w, nw in zip(self.weights, nabla_weights)]
@@ -134,3 +134,12 @@ class Fnn(object):
             for mini_batch in mini_batches:
                 self.train_mini_batch(mini_batch, gamma)
 
+
+
+import mnist_loader
+training_data, validation_data, test_data = mnist_loader.load_data_wrapper('/home/mk/Github/deep_learning/mnist/data/mnist.pkl.gz')
+
+size = [784, 30, 10]
+## Model 1
+net = Fnn(size)
+net.train(training_data, 30, 10, 0.1, test_data=test_data)
