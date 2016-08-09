@@ -55,7 +55,7 @@ class Fnn(object):
         self.activation = [None] * (self.num_layer)
         self.trans = [None] * (self.num_layer - 1)
 
-    def feedforward(self, x, y):
+    def feedforward(self, x):
         """Performs the feedforward, the transformation and the activation layers
         are updated.
 
@@ -72,10 +72,7 @@ class Fnn(object):
             ## Perform activation
             self.activation[layer + 1] = sigmoid(self.trans[layer])
 
-        cost = cross_entropy(y, self.activation[-1])
-        if(np.isnan(cost)):
-            raise Exception("Cost is nan")
-        print(cost)
+
 
     def backpropagation(self, x, y, gamma):
         """Take the activation and trasformation layer, and updates the biases and
@@ -113,16 +110,21 @@ class Fnn(object):
         method to update the biase, weights, activation and transformation.
 
         """
-        for sx, sy in mini_batch:
-            ## Do feedforward
-            self.feedforward(sx.T, sy.T)
-            ## Do back propagation
-            self.backpropagation(sx.T, sy.T, gamma)
+        # for sx, sy in mini_batch:
+        sx, sy = zip(*mini_batch)
+        sx = np.squeeze(np.asarray(sx), axis = (2, ))
+        sy = np.squeeze(np.asarray(sy), axis = (2, ))
+        ## Do feedforward
+        self.feedforward(sx)
+        ## Do back propagation
+        self.backpropagation(sx, sy, gamma)
 
 
     def train(self, training_data, epochs, mini_batch_size, gamma, test_data = None):
         """Train the model"""
+        n = len(training_data)
         for epoch in xrange(epochs):
+            print(epoch)
             ## Shuffle the data
             random.shuffle(training_data)
             n = len(training_data)
@@ -135,11 +137,10 @@ class Fnn(object):
                 self.train_mini_batch(mini_batch, gamma)
 
 
-
 import mnist_loader
 training_data, validation_data, test_data = mnist_loader.load_data_wrapper('/home/mk/Github/deep_learning/mnist/data/mnist.pkl.gz')
 
 size = [784, 30, 10]
 ## Model 1
 net = Fnn(size)
-net.train(training_data, 30, 10, 0.1, test_data=test_data)
+net.train(training_data, 2, 100, 3, test_data=test_data)
