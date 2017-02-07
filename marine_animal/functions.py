@@ -63,7 +63,7 @@ def retrieve_images(url_infos, image_path, group, log_file):
     '''Retrieve the images from imagenet.
     '''
 
-    file_destination = image_path + group
+    file_destination = os.path.join(image_path, group)
     try:
         os.stat(file_destination)
     except:
@@ -79,9 +79,6 @@ def retrieve_images(url_infos, image_path, group, log_file):
                     os.remove(image_destination)
             except:
                 msg = 'Image({0}, {1}) retrieval failed.\n'.format(
-                    group, image_url)
+                    group, image_url.encode('utf-8'))
                 with open(log_file, 'a+') as f:
                     f.write(msg)
-
-
-# def preprocess_image(image):
